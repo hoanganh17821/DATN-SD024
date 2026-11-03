@@ -34,4 +34,15 @@ public class SanPhamAdminController {
     public void setStatus(@PathVariable Integer id, @RequestParam boolean value) {
         service.setStatus(id, value);
     }
+    @PostMapping("/{id}/bien-the")
+    public SanPhamAdminResponse addVariant(@PathVariable Integer id,
+                                           @Valid @RequestBody SanPhamAdminService.VariantPatch request) {
+        return service.saveOneVariant(id, null, request);
+    }
+
+    @PutMapping("/{id}/bien-the/{variantId}")
+    public SanPhamAdminResponse editVariant(@PathVariable Integer id, @PathVariable Integer variantId,
+                                            @Valid @RequestBody SanPhamAdminService.VariantPatch request) {
+        return service.saveOneVariant(id, variantId, request);
+    }
 }

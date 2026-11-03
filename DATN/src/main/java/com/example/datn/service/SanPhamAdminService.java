@@ -55,6 +55,7 @@ public class SanPhamAdminService {
         applyProduct(sp, r);
         spRepo.save(sp);
         syncVariants(sp, r);
+        if (!Boolean.TRUE.equals(sp.getTrangThai())) disableAllVariants(sp.getId());
         return getOne(id);
     }
 
@@ -63,7 +64,56 @@ public class SanPhamAdminService {
         SanPham sp = spRepo.findById(id).orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
         sp.setTrangThai(value);
         spRepo.save(sp);
+        // Khi ngừng bán sản phẩm, tắt tất cả biến thể trong cùng transaction.
+        // Khi bật lại sản phẩm, không tự mở lại các biến thể đã tắt trước đó.
+        if (!value) disableAllVariants(id);
     }
+
+    private void disableAllVariants(Integer productId) {
+        List<SanPhamChiTiet> variants = ctRepo.findAllByProductId(productId);
+        for (SanPhamChiTiet v : variants) v.setTrangThai(false);
+        ctRepo.saveAll(variants);
+    }
+
+    // API thao tác đúng một biến thể, không đồng bộ/xóa các biến thể khác.
+    @Transactional
+    public SanPhamAdminResponse saveOneVariant(Integer productId, Integer variantId, VariantPatch r) {
+        SanPham sp = spRepo.findById(productId).orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
+        SanPhamChiTiet v;
+        if (variantId == null) {
+            v = new SanPhamChiTiet();
+            v.setSanPham(sp);
+        } else {
+            v = ctRepo.findById(variantId).orElseThrow(() -> new RuntimeException("Không tìm thấy biến thể"));
+            if (!v.getSanPham().getId().equals(productId)) throw new RuntimeException("Biến thể không thuộc sản phẩm");
+        }
+        if (r.giaBan().compareTo(r.giaBanBanDau()) > 0) throw new RuntimeException("Giá bán không được lớn hơn giá niêm yết");
+        MauSac m = mauRepo.findById(r.idMau()).orElseThrow(() -> new RuntimeException("Màu không tồn tại"));
+        KichThuoc k = sizeRepo.findById(r.idKichThuoc()).orElseThrow(() -> new RuntimeException("Kích thước không tồn tại"));
+        boolean duplicated = ctRepo.findAllByProductId(productId).stream().anyMatch(other ->
+                !Objects.equals(other.getId(), variantId) && Objects.equals(other.getMauSac().getId(), r.idMau()) && Objects.equals(other.getKichThuoc().getId(), r.idKichThuoc()));
+        if (duplicated) throw new RuntimeException("Biến thể màu sắc và kích thước này đã tồn tại");
+        v.setMauSac(m);
+        v.setKichThuoc(k);
+        if (variantId == null) v.setChatLieu(ctRepo.findAllByProductId(productId).stream().map(SanPhamChiTiet::getChatLieu).filter(Objects::nonNull).findFirst().orElse(null));
+        v.setMaAoChiTiet(sp.getMaAo() + "-" + m.getMaMau() + "-" + k.getTenKichThuoc());
+        v.setGiaBanBanDau(r.giaBanBanDau());
+        v.setGiaBan(r.giaBan());
+        v.setSoLuong(r.soLuong());
+        if (!Boolean.TRUE.equals(sp.getTrangThai()) && !Boolean.FALSE.equals(r.trangThai()))
+            throw new IllegalStateException("Sản phẩm đang ngừng kinh doanh; không thể bật biến thể");
+        v.setTrangThai(Boolean.TRUE.equals(sp.getTrangThai()) && (r.trangThai() == null || r.trangThai()));
+        ctRepo.save(v);
+        return getOne(productId);
+    }
+
+    public record VariantPatch(
+            @jakarta.validation.constraints.NotNull Integer idMau,
+            @jakarta.validation.constraints.NotNull Integer idKichThuoc,
+            @jakarta.validation.constraints.NotNull @jakarta.validation.constraints.DecimalMin("0") BigDecimal giaBanBanDau,
+            @jakarta.validation.constraints.NotNull @jakarta.validation.constraints.DecimalMin("0") BigDecimal giaBan,
+            @jakarta.validation.constraints.NotNull @jakarta.validation.constraints.Min(0) Integer soLuong,
+            Boolean trangThai) {}
 
     // ---------------------------------------------------------------
 
@@ -84,7 +134,7 @@ public class SanPhamAdminService {
     // Đồng bộ biến thể: thêm mới / cập nhật / ngừng bán những biến thể không còn trong form
     private void syncVariants(SanPham sp, SanPhamRequest r) {
         ChatLieu cl = r.idChatLieu() == null ? null : clRepo.findById(r.idChatLieu())
-                .orElseThrow(() -> new RuntimeException("Chất liệu không tồn tại"));
+                                                      .orElseThrow(() -> new RuntimeException("Chất liệu không tồn tại"));
 
         Map<String, SanPhamChiTiet> existing = ctRepo.findAllByProductId(sp.getId()).stream()
                 .collect(Collectors.toMap(
@@ -113,7 +163,7 @@ public class SanPhamAdminService {
             v.setGiaBanBanDau(b.giaBanBanDau());
             v.setGiaBan(b.giaBan());
             v.setSoLuong(b.soLuong());
-            v.setTrangThai(b.trangThai() != null ? b.trangThai() : true);
+            v.setTrangThai(Boolean.TRUE.equals(sp.getTrangThai()) && (b.trangThai() != null ? b.trangThai() : true));
             ctRepo.save(v);
         }
 
@@ -145,14 +195,14 @@ public class SanPhamAdminService {
         ChatLieu cl = all.stream().map(SanPhamChiTiet::getChatLieu).filter(Objects::nonNull).findFirst().orElse(null);
         ThuongHieu th = sp.getThuongHieu();
 
-        List<SanPhamAdminResponse.BienThe> bienThe = !withVariants ? List.of() : active.stream().map(v ->
-                new SanPhamAdminResponse.BienThe(
-                        v.getId(),
-                        v.getMauSac().getId(), v.getMauSac().getTenMau(),
-                        v.getMauSac().getMaHex() != null ? v.getMauSac().getMaHex() : "#cccccc",
-                        v.getKichThuoc().getId(), v.getKichThuoc().getTenKichThuoc(),
-                        v.getGiaBanBanDau(), v.getGiaBan(),
-                        v.getSoLuong(), v.getTrangThai(), v.getMaAoChiTiet())).toList();
+        List<SanPhamAdminResponse.BienThe> bienThe = !withVariants ? List.of() : all.stream().map(v ->
+                                                                                                  new SanPhamAdminResponse.BienThe(
+                                                                                                          v.getId(),
+                                                                                                          v.getMauSac().getId(), v.getMauSac().getTenMau(),
+                                                                                                          v.getMauSac().getMaHex() != null ? v.getMauSac().getMaHex() : "#cccccc",
+                                                                                                          v.getKichThuoc().getId(), v.getKichThuoc().getTenKichThuoc(),
+                                                                                                          v.getGiaBanBanDau(), v.getGiaBan(),
+                                                                                                          v.getSoLuong(), v.getTrangThai(), v.getMaAoChiTiet())).toList();
 
         return new SanPhamAdminResponse(
                 sp.getId(), sp.getMaAo(), sp.getTenAo(), sp.getMoTa(), sp.getTrangThai(),
