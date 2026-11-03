@@ -1,19 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CarOutlined, SwapOutlined, WalletOutlined, ClockCircleOutlined } from '@ant-design/icons'
-import { fetchFilters, searchProducts } from '../../api/storeApi'
+import { searchProducts } from '../../api/storeApi'
 import ProductCard from '../../components/user/ProductCard'
+import HeroSlider from '../../components/user/HeroSlider'
 import { ProductSkeletons } from '../../components/user/Skeleton'
 import Shirt from '../../components/user/Shirt'
-
-// Dùng khi chưa tải được màu từ server
-const FALLBACK_COLORS = [
-    { id: null, ten: 'Xanh navy', hex: '#1f2a44' },
-    { id: null, ten: 'Trắng', hex: '#ffffff' },
-    { id: null, ten: 'Đen', hex: '#000000' },
-    { id: null, ten: 'Đỏ đô', hex: '#800020' },
-    { id: null, ten: 'Xám', hex: '#808080' },
-]
 
 const FACTS = [
     { icon: <CarOutlined />, title: 'Miễn phí vận chuyển', sub: 'Cho đơn từ 500.000 ₫' },
@@ -24,10 +16,34 @@ const FACTS = [
 
 // Sửa danh sách này theo sản phẩm thực tế. "q" là từ khóa tìm kiếm khi bấm vào ô (không cần gõ dấu).
 const TILES = [
-    { title: 'Cổ điển', sub: 'Vải pique đứng form', q: 'classic', bg: '#1f2a44', shirt: '#3d517f' },
-    { title: 'Dáng ôm', sub: 'Gọn gàng, ôm nhẹ', q: 'slim fit', bg: '#3b4350', shirt: '#6b7686' },
-    { title: 'Thể thao', sub: 'Nhẹ, nhanh khô', q: 'the thao', bg: '#6f2332', shirt: '#a24556' },
-    { title: 'Thoáng khí', sub: 'Mặc thoải mái hằng ngày', q: 'thoang khi', bg: '#2f4a3c', shirt: '#5c8571' },
+    {
+        title: 'Cổ điển',
+        sub: 'Vải pique đứng form',
+        q: 'classic',
+        bg: '#1f2a44',
+        image: '/img/Polo/4phongcach/codien.png'
+    },
+    {
+        title: 'Dáng ôm',
+        sub: 'Gọn gàng, ôm nhẹ',
+        q: 'slim fit',
+        bg: '#3b4350',
+        image: '/img/Polo/4phongcach/dangom.png'
+    },
+    {
+        title: 'Thể thao',
+        sub: 'Nhẹ, nhanh khô',
+        q: 'the thao',
+        bg: '#6f2332',
+        image: '/img/Polo/4phongcach/thethao.png'
+    },
+    {
+        title: 'Thoáng khí',
+        sub: 'Mặc thoải mái hằng ngày',
+        q: 'thoang khi',
+        bg: '#2f4a3c',
+        image: '/img/Polo/4phongcach/thoangkhi.png'
+    },
 ]
 
 const TABS = [
@@ -37,7 +53,7 @@ const TABS = [
 ]
 
 export default function Home() {
-    const [colors, setColors] = useState(null)
+    const [slideProducts, setSlideProducts] = useState([])
     const [tab, setTab] = useState(TABS[0])
     const [list, setList] = useState(null)
     const [error, setError] = useState(false)
@@ -45,7 +61,12 @@ export default function Home() {
 
     useEffect(() => { document.title = 'POLO HOUSE | Áo polo cổ bẻ' }, [])
 
-    useEffect(() => { fetchFilters().then(d => setColors(d.mau)).catch(() => {}) }, [])
+    // Sản phẩm cho slide đầu trang: lấy 12 mẫu mới nhất, slide tự chọn ra các mẫu có ảnh
+    useEffect(() => {
+        searchProducts({ sapXep: 'moi', trang: 1, kichThuoc: 12 })
+            .then(d => setSlideProducts(d.items))
+            .catch(() => {})
+    }, [])
 
     // Tìm mức giảm lớn nhất để hiện trên banner ưu đãi
     useEffect(() => {
@@ -68,33 +89,9 @@ export default function Home() {
         return () => { ignore = true }
     }, [tab])
 
-    const rail = (colors?.length ? colors : FALLBACK_COLORS).slice(0, 5)
-
     return (
         <>
-            <section className="hero">
-                <div>
-                    <h1>Một kiểu áo, nhiều sắc độ</h1>
-                    <p className="sub">Polo cổ bẻ, chất liệu cotton và pique, đủ kích cỡ từ S đến XXL.</p>
-                    <div className="hero-cta">
-                        <Link to="/san-pham" className="btn">Xem tất cả áo polo</Link>
-                        <Link to="/san-pham?km=1" className="btn ghost">Sản phẩm đang giảm giá</Link>
-                    </div>
-                </div>
-
-                <div>
-                    <div className="rail">
-                        {rail.map((c, i) => (
-                            <Link key={c.id ?? i} to={c.id ? `/san-pham?mau=${c.id}` : '/san-pham'} className="rail-item"
-                                  aria-label={`Xem áo polo màu ${c.ten}`}>
-                                <Shirt color={c.hex} />
-                                <span>{c.ten}</span>
-                            </Link>
-                        ))}
-                        <p className="rail-note">Chọn một màu để xem các mẫu có màu đó.</p>
-                    </div>
-                </div>
-            </section>
+            <HeroSlider products={slideProducts} />
 
             <section className="facts" aria-label="Chính sách cửa hàng">
                 {FACTS.map(f => (
@@ -109,10 +106,23 @@ export default function Home() {
                 <div className="bar"><h2>Chọn theo phong cách</h2></div>
                 <div className="tiles">
                     {TILES.map(t => (
-                        <Link key={t.title} to={`/san-pham?q=${encodeURIComponent(t.q)}`} className="tile" style={{ background: t.bg }}>
-                            <Shirt color={t.shirt} />
-                            <h3>{t.title}</h3>
-                            <p>{t.sub}</p>
+                        <Link
+                            key={t.title}
+                            to={`/san-pham?q=${encodeURIComponent(t.q)}`}
+                            className="tile"
+                            style={{ background: t.bg }}
+                        >
+                            <img
+                                src={t.image}
+                                alt=""
+                                className="tile-image"
+                                loading="lazy"
+                            />
+
+                            <div className="tile-content">
+                                <h3>{t.title}</h3>
+                                <p>{t.sub}</p>
+                            </div>
                         </Link>
                     ))}
                 </div>

@@ -57,21 +57,10 @@
     .mnav a.on { font-weight: 600 }
 
     /* ---------- Trang chủ ---------- */
-    .hero { max-width: 1200px; margin: 0 auto; padding: 56px 24px 24px; display: grid;
-        grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; align-items: center }
-    .hero h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(40px, 5.4vw, 68px); line-height: 1.04;
-        letter-spacing: -.015em; margin: 0 0 20px }
-    .hero .sub { max-width: 440px; color: #4a5461; margin: 0 0 30px }
-    .hero-cta { display: flex; gap: 12px; flex-wrap: wrap }
 
-    .rail { position: relative; padding-top: 22px; border-top: 2px solid var(--ink); display: grid;
-        grid-template-columns: repeat(5, 1fr); gap: 4px }
-    .rail-item { display: block; text-align: center; position: relative; padding-top: 18px }
-    .rail-item::before { content: ''; position: absolute; top: -22px; left: 50%; width: 1px; height: 40px; background: var(--ink) }
-    .rail-item .shirt { width: 100%; transition: transform .25s }
-    .rail-item:hover .shirt, .rail-item:focus-visible .shirt { transform: translateY(8px) rotate(-2deg) }
-    .rail-item span { display: block; font-size: 13px; margin-top: 6px }
-    .rail-note { grid-column: 1 / -1; margin: 22px 0 0; color: var(--muted); font-size: 13px }
+
+
+
 
     .facts { max-width: 1200px; margin: 36px auto 0; padding: 0 24px; display: grid; grid-template-columns: repeat(4, 1fr);
         border-top: 1px solid var(--line); border-bottom: 1px solid var(--line) }
@@ -90,18 +79,115 @@
     .ftab:hover { color: var(--ink) }
     .ftab.on { color: var(--ink); border-bottom-color: var(--ink) }
 
-    .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px }
-    .tile { position: relative; aspect-ratio: 4 / 5; overflow: hidden; color: #fff; display: flex; flex-direction: column;
-        justify-content: flex-end; padding: 24px }
-    .tile .shirt { position: absolute; width: 86%; right: -18%; top: 6%; transform: rotate(10deg); transition: transform .3s }
-    .tile:hover .shirt { transform: rotate(6deg) translateY(-6px) }
-    .tile h3 { position: relative; margin: 0; font-family: var(--serif); font-weight: 400; font-size: 30px; line-height: 1.1 }
-    .tile p { position: relative; margin: 6px 0 0; font-size: 14px; opacity: .9 }
+    .tiles {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+    }
+
+    .tile {
+        position: relative;
+        aspect-ratio: 4 / 5;
+        overflow: hidden;
+        color: #fff;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding: 24px;
+    }
+
+    /* Ảnh sản phẩm */
+    .tile-image {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        mix-blend-mode: multiply;
+        transition: transform .4s ease;
+    }
+
+    /* Hiệu ứng khi rê chuột */
+    .tile:hover .tile-image {
+        transform: scale(1.05);
+    }
+
+    /* Lớp phủ giúp chữ dễ đọc */
+    .tile::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+                to top,
+                rgba(0, 0, 0, .75),
+                rgba(0, 0, 0, .15) 55%,
+                transparent
+        );
+        pointer-events: none;
+    }
+
+    /* Nội dung chữ */
+    .tile-content {
+        position: relative;
+        z-index: 2;
+        color: #fff;
+    }
+
+    .tile h3 {
+        margin: 0;
+        font-family: var(--serif);
+        font-weight: 400;
+        font-size: 30px;
+        line-height: 1.1;
+        color: #fff;
+    }
+
+    .tile p {
+        margin: 6px 0 0;
+        font-size: 14px;
+        opacity: .9;
+        color: #fff;
+    }
 
     .promo { margin-top: 72px; background: var(--navy); color: #fff; padding: 72px 24px }
     .promo-in { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 32px; flex-wrap: wrap }
     .promo h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(30px, 4vw, 46px); line-height: 1.1; margin: 0 0 10px }
     .promo p { margin: 0; opacity: .85 }
+    .hs { position: relative; overflow: hidden; background: var(--navy) }
+    .hs :focus-visible { outline-color: #fff }
+    .hs-track { display: flex; transition: transform .6s cubic-bezier(.4, 0, .2, 1) }
+    .hs-slide { flex: 0 0 100%; min-width: 0; color: #fff }
+    .hs-in { max-width: 1200px; margin: 0 auto; padding: 0 24px; min-height: clamp(380px, 38vw, 500px);
+        display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 48px; align-items: stretch }
+    .hs-txt { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding: 48px 0 64px }
+    .hs-txt h1, .hs-txt h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(34px, 4.4vw, 56px);
+        line-height: 1.05; letter-spacing: -.015em; margin: 0 0 16px }
+    .hs-txt p { margin: 0 0 28px; max-width: 420px; opacity: .9 }
+    .hs-sale { display: inline-block; margin-left: 10px; background: #fff; color: var(--sale); font-size: 13px;
+        font-weight: 500; padding: 1px 8px; vertical-align: 1px }
+    .hs-cta { display: flex; gap: 12px; flex-wrap: wrap }
+    .btn.line-light { background: transparent; color: #fff; border-color: rgba(255, 255, 255, .7) }
+    .btn.line-light:hover:not(:disabled) { background: rgba(255, 255, 255, .12); border-color: #fff }
+    .hs-art { position: relative; background: var(--wash); display: grid; place-items: center; overflow: hidden }
+    .hs-art .photo { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; object-position: center 25% }
+    .hs-art .shirt { width: min(52%, 300px) }
+    .hs-banner { display: block; height: clamp(380px, 38vw, 500px) }
+    .hs-banner img { width: 100%; height: 100%; object-fit: cover; display: block }
+    .hs-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; background: #fff;
+        color: var(--ink); border: 0; cursor: pointer; display: grid; place-items: center; font-size: 15px }
+    .hs-arrow:hover { background: var(--wash) }
+    .hs-arrow.prev { left: 16px }
+    .hs-arrow.next { right: 16px }
+    .hs-ctrl { position: absolute; left: 0; right: 0; bottom: 18px; pointer-events: none }
+    .hs-ctrl-in { max-width: 1200px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; gap: 8px }
+    .hs-ctrl-in > * { pointer-events: auto }
+    .hs-dot { width: 32px; height: 21px; padding: 9px 0; border: 0; cursor: pointer;
+        background-color: rgba(255, 255, 255, .4); background-clip: content-box }
+    .hs-dot.on { background-color: #fff }
+    .hs-pause { margin-left: 8px; width: 28px; height: 28px; border: 1px solid rgba(255, 255, 255, .6);
+        background: transparent; color: #fff; cursor: pointer; font-size: 11px; display: grid; place-items: center }
+    .hs-pause:hover { background: rgba(255, 255, 255, .15) }
 
     /* ---------- Thẻ sản phẩm ---------- */
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 36px 20px }
@@ -314,6 +400,11 @@
         .page-title, .detail h1 { font-size: 32px }
         .promo { padding: 52px 20px }
         .rail { grid-template-columns: repeat(5, minmax(64px, 1fr)); overflow-x: auto }
+        .hs-in { grid-template-columns: 1fr; gap: 0; padding: 0; min-height: 0 }
+        .hs-art { order: -1; height: 260px }
+        .hs-txt { padding: 28px 24px 64px }
+        .hs-arrow { display: none }
+        .hs-banner { height: 240px }
     }
     @media (max-width: 520px) {
         .tiles { grid-template-columns: 1fr 1fr; gap: 10px }
@@ -323,5 +414,10 @@
         .foot-grid { grid-template-columns: 1fr }
         .facts { grid-template-columns: 1fr }
         .fact + .fact { border-left: 0; padding-left: 0; border-top: 1px solid var(--line) }
+        .hs-in { grid-template-columns: 1fr; gap: 0; padding: 0; min-height: 0 }
+        .hs-art { order: -1; height: 260px }
+        .hs-txt { padding: 28px 24px 64px }
+        .hs-arrow { display: none }
+        .hs-banner { height: 240px }
     }
 }
