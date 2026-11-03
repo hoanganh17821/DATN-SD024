@@ -1,7 +1,36 @@
-import { useEffect, useState } from 'react'
-import { Table, Button, Modal, Form, Input, Select, ColorPicker, Space, Tag, Popconfirm, Card, App } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { useEffect, useMemo, useState } from 'react'
+import { Table, Button, Modal, Form, Input, Select, ColorPicker, Space, App } from 'antd'
+import { PlusOutlined, EditOutlined, FilterOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons'
 import api from '../../api/axios'
+
+const normalize = (value) => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase()
+
+// Dùng cùng các lớp giao diện với bảng Quản lý sản phẩm; không cần file CSS riêng.
+const mauSacStyles = `
+.ms-page { color: #111827; font-size: 13px; }
+.ms-panel { background: #fff; border: 1px solid #eaecf0; border-radius: 10px; padding: 20px 22px; margin-bottom: 18px; }
+.ms-heading { display: flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 700; margin-bottom: 19px; }
+.ms-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; max-width: 780px; }
+.ms-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.ms-field > span, .ms-field-title { font-size: 12px; color: #667085; }
+.ms-field .ant-input-affix-wrapper, .ms-field .ant-select-selector { border-radius: 7px !important; min-height: 35px; }
+.ms-field .ant-select { width: 100%; height: 35px; }
+.ms-bottom { display: flex; justify-content: flex-end; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin-top: 20px; }
+.ms-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ms-actions .ant-btn { height: 34px; background: #f7f8fa; border: 1px solid #e4e7ec; color: #344054; border-radius: 8px; font-size: 12px; font-weight: 600; box-shadow: none; }
+.ms-actions .ant-btn:hover { background: #edf0f5 !important; color: #17233e !important; border-color: #cfd6e2 !important; }
+.ms-table-panel { padding: 18px 20px 12px; }
+.ms-table-panel .ant-table-thead > tr > th { background: #f7f8fa !important; color: #172033 !important; font-size: 12px; font-weight: 700; padding: 14px 12px !important; white-space: nowrap; }
+.ms-table-panel .ant-table-tbody > tr > td { font-size: 12px; color: #283142; padding: 14px 12px !important; border-bottom: 1px solid #eef0f3; }
+.ms-table-panel .ant-table-tbody > tr:hover > td { background: #f8fafc !important; }
+.ms-status { display: inline-block; border-radius: 16px; padding: 5px 12px; font-size: 11px; color: #fff; white-space: nowrap; }
+.ms-status-on { background: #1c2847; }
+.ms-status-off { background: #98a2b3; }
+.ms-table-panel .ant-pagination-item-active { background: #1c2847; border-color: #1c2847; }
+.ms-table-panel .ant-pagination-item-active a { color: #fff; }
+.ms-table-panel .ant-btn { border-radius: 7px; }
+@media (max-width: 650px) { .ms-grid { grid-template-columns: 1fr; } .ms-panel { padding: 14px; } }
+`
 
 export default function MauSac() {
     const { message } = App.useApp()
@@ -10,6 +39,9 @@ export default function MauSac() {
     const [open, setOpen] = useState(false)
     const [editing, setEditing] = useState(null)
     const [search, setSearch] = useState('')
+    const [status, setStatus] = useState('all')
+    const [page, setPage] = useState(1)
+    const [pageSize, setPageSize] = useState(10)
     const [form] = Form.useForm()
 
     const load = async () => {
@@ -48,21 +80,15 @@ export default function MauSac() {
         }
     }
 
-    const remove = async (id) => {
-        try {
-            await api.delete(`/admin/mau-sac/${id}`)
-            message.success('Đã xóa')
-            load()
-        } catch {
-            message.error('Không xóa được (màu đang được sản phẩm sử dụng?)')
-        }
-    }
 
-    const filtered = data.filter(d =>
-        ((d.tenMau ?? '') + (d.maMau ?? '')).toLowerCase().includes(search.toLowerCase()))
+    const filtered = useMemo(() => data.filter(d =>
+        normalize(d.tenMau).includes(normalize(search.trim())) &&
+        (status === 'all' || (status === 'on' ? d.trangThai === true : d.trangThai === false))
+    ), [data, search, status])
+    const resetFilters = () => { setSearch(''); setStatus('all'); setPage(1) }
 
     const columns = [
-        { title: 'STT', width: 70, render: (_, __, i) => i + 1 },
+        { title: 'STT', width: 70, align: 'center', render: (_, __, i) => (page - 1) * pageSize + i + 1 },
         { title: 'Mã màu', dataIndex: 'maMau', width: 120 },
         { title: 'Tên màu', dataIndex: 'tenMau', width: 180 },
         {
@@ -78,28 +104,53 @@ export default function MauSac() {
         { title: 'Mô tả', dataIndex: 'moTa' },
         {
             title: 'Trạng thái', dataIndex: 'trangThai', width: 130,
-            render: (v) => v ? <Tag color="green">Hoạt động</Tag> : <Tag>Ngừng</Tag>,
+            render: (v) => <span className={`ms-status ${v ? 'ms-status-on' : 'ms-status-off'}`}>{v ? 'Hoạt động' : 'Ngừng'}</span>,
         },
         {
-            title: 'Thao tác', width: 120,
+            title: 'Thao tác', width: 120, align: 'center',
             render: (_, r) => (
                 <Space>
-                    <Button icon={<EditOutlined />} onClick={() => openForm(r)} />
-                    <Popconfirm title="Xóa màu này?" okText="Xóa" cancelText="Hủy" onConfirm={() => remove(r.id)}>
-                        <Button danger icon={<DeleteOutlined />} />
-                    </Popconfirm>
+                    <Button type="text" icon={<EditOutlined />} onClick={() => openForm(r)} />
                 </Space>
             ),
         },
     ]
 
     return (
-        <Card title="Quản lý màu sắc"
-              extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => openForm(null)}>Thêm màu</Button>}>
-            <Input.Search placeholder="Tìm theo mã hoặc tên màu" allowClear
-                          style={{ maxWidth: 320, marginBottom: 16 }} onChange={e => setSearch(e.target.value)} />
-            <Table rowKey="id" loading={loading} dataSource={filtered} columns={columns}
-                   pagination={{ pageSize: 8 }} />
+        <div className="ms-page">
+            <style>{mauSacStyles}</style>
+            <section className="ms-panel">
+                <div className="ms-heading"><FilterOutlined /> Bộ lọc tìm kiếm</div>
+                <div className="ms-grid">
+                    <label className="ms-field">
+                        <span>Tìm kiếm theo tên màu</span>
+                        <Input allowClear prefix={<SearchOutlined style={{ color: '#98a2b3' }} />}
+                               placeholder="Nhập tên màu cần tìm..." value={search}
+                               onChange={e => { setSearch(e.target.value); setPage(1) }} />
+                    </label>
+                    <label className="ms-field">
+                        <span>Trạng thái</span>
+                        <Select value={status} onChange={v => { setStatus(v); setPage(1) }}
+                                options={[{ value: 'all', label: 'Tất cả trạng thái' }, { value: 'on', label: 'Hoạt động' }, { value: 'off', label: 'Ngừng' }]} />
+                    </label>
+                </div>
+                <div className="ms-bottom">
+                    <div className="ms-actions">
+                        <Button icon={<ReloadOutlined />} onClick={resetFilters}>Đặt lại bộ lọc</Button>
+                        <Button icon={<ReloadOutlined />} onClick={load}>Tải lại</Button>
+                        <Button type="primary" icon={<PlusOutlined />} style={{ background: '#1c2847', color: '#fff', borderColor: '#1c2847' }}
+                                onClick={() => openForm(null)}>Thêm màu</Button>
+                    </div>
+                </div>
+            </section>
+            <section className="ms-panel ms-table-panel">
+                <Table rowKey="id" loading={loading} dataSource={filtered} columns={columns}
+                       scroll={{ x: 850 }} size="middle"
+                       pagination={{ current: page, pageSize, pageSizeOptions: [10, 20, 50, 100], showSizeChanger: true,
+                           position: ['bottomCenter'], showTotal: total => `Tổng ${total} màu`,
+                           onChange: (nextPage, nextSize) => { setPage(nextPage); setPageSize(nextSize) } }}
+                       locale={{ emptyText: 'Không tìm thấy màu sắc phù hợp' }} />
+            </section>
 
             <Modal title={editing ? 'Sửa màu sắc' : 'Thêm màu sắc'} open={open} destroyOnClose
                    onOk={submit} onCancel={() => setOpen(false)} okText="Lưu" cancelText="Hủy">
@@ -119,6 +170,6 @@ export default function MauSac() {
                     </Form.Item>
                 </Form>
             </Modal>
-        </Card>
+        </div>
     )
 }
